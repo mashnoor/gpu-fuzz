@@ -70,3 +70,7 @@ venv/
 *.swp
 *~
 .github/modernize/
+
+# --- Local-only docs / assets ---
+/pptx_assets/
+/*.md
