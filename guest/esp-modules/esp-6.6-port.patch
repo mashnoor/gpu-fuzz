@@ -1,0 +1,113 @@
+diff -ruN '--exclude=*.o' '--exclude=*.ko' '--exclude=*.mod*' '--exclude=.*' '--exclude=Module.symvers' '--exclude=modules.order' .orig/contig_alloc/contig_alloc.c ./contig_alloc/contig_alloc.c
+--- .orig/contig_alloc/contig_alloc.c	2026-09-10 18:32:45.737649624 -0400
++++ ./contig_alloc/contig_alloc.c	2026-09-10 18:33:07.576204435 -0400
+@@ -608,7 +608,8 @@
+ 
+ static int __init contig_create_file(void)
+ {
+-    contig_class = class_create(THIS_MODULE, "contig_alloc");
++    /* Linux 6.4 dropped the owner argument from class_create(). */
++    contig_class = class_create("contig_alloc");
+     if (IS_ERR(contig_class)) return PTR_ERR(contig_class);
+ 
+     if (register_chrdev(CONTIG_MAJOR, "contig_alloc", &contig_fops)) goto err_chrdev;
+diff -ruN '--exclude=*.o' '--exclude=*.ko' '--exclude=*.mod*' '--exclude=.*' '--exclude=Module.symvers' '--exclude=modules.order' .orig/esp/esp.c ./esp/esp.c
+--- .orig/esp/esp.c	2026-09-10 18:32:45.738690822 -0400
++++ ./esp/esp.c	2026-09-10 18:33:07.576294886 -0400
+@@ -640,7 +640,8 @@
+     const char *name = drv->plat.driver.name;
+     int rc;
+ 
+-    drv->class = class_create(drv->plat.driver.owner, name);
++    /* Linux 6.4 dropped the owner argument from class_create(). */
++    drv->class = class_create(name);
+     if (IS_ERR(drv->class)) {
+         pr_err(PFX "Failed to create esp class\n");
+         rc = PTR_ERR(drv->class);
+diff -ruN '--exclude=*.o' '--exclude=*.ko' '--exclude=*.mod*' '--exclude=.*' '--exclude=Module.symvers' '--exclude=modules.order' .orig/esp-6.6-port.patch ./esp-6.6-port.patch
+--- .orig/esp-6.6-port.patch	1969-12-31 19:00:00.000000000 -0500
++++ ./esp-6.6-port.patch	2026-09-10 18:33:34.526355982 -0400
+@@ -0,0 +1,26 @@
++diff -ruN '--exclude=*.o' '--exclude=*.ko' '--exclude=*.mod*' '--exclude=.*' '--exclude=Module.symvers' '--exclude=modules.order' .orig/contig_alloc/contig_alloc.c ./contig_alloc/contig_alloc.c
++--- .orig/contig_alloc/contig_alloc.c	2026-09-10 18:32:45.737649624 -0400
+++++ ./contig_alloc/contig_alloc.c	2026-09-10 18:33:07.576204435 -0400
++@@ -608,7 +608,8 @@
++ 
++ static int __init contig_create_file(void)
++ {
++-    contig_class = class_create(THIS_MODULE, "contig_alloc");
+++    /* Linux 6.4 dropped the owner argument from class_create(). */
+++    contig_class = class_create("contig_alloc");
++     if (IS_ERR(contig_class)) return PTR_ERR(contig_class);
++ 
++     if (register_chrdev(CONTIG_MAJOR, "contig_alloc", &contig_fops)) goto err_chrdev;
++diff -ruN '--exclude=*.o' '--exclude=*.ko' '--exclude=*.mod*' '--exclude=.*' '--exclude=Module.symvers' '--exclude=modules.order' .orig/esp/esp.c ./esp/esp.c
++--- .orig/esp/esp.c	2026-09-10 18:32:45.738690822 -0400
+++++ ./esp/esp.c	2026-09-10 18:33:07.576294886 -0400
++@@ -640,7 +640,8 @@
++     const char *name = drv->plat.driver.name;
++     int rc;
++ 
++-    drv->class = class_create(drv->plat.driver.owner, name);
+++    /* Linux 6.4 dropped the owner argument from class_create(). */
+++    drv->class = class_create(name);
++     if (IS_ERR(drv->class)) {
++         pr_err(PFX "Failed to create esp class\n");
++         rc = PTR_ERR(drv->class);
+diff -ruN '--exclude=*.o' '--exclude=*.ko' '--exclude=*.mod*' '--exclude=.*' '--exclude=Module.symvers' '--exclude=modules.order' .orig/Makefile ./Makefile
+--- .orig/Makefile	1969-12-31 19:00:00.000000000 -0500
++++ ./Makefile	2026-09-10 18:33:27.138006177 -0400
+@@ -0,0 +1,53 @@
++# Builds the ESP Linux kernel modules for the QEMU 'virt' guest.
++#
++# Source is copied from the pinned ESP tree and minimally ported to Linux 6.x;
++# see esp-6.6-port.patch for the exact delta. Build order matters: esp.ko needs
++# esp_cache.ko's exported symbols, and gt_vortex_rtl.ko needs esp.ko's.
++
++MODDIR   := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
++GUEST    := $(abspath $(MODDIR)/..)
++WORKSPACE:= $(abspath $(GUEST)/..)
++ESP_ROOT ?= $(WORKSPACE)/esp
++
++KSRC        ?= $(GUEST)/linux-6.6.156
++DESIGN_PATH ?= $(GUEST)/esp-soc
++ARCH        ?= riscv
++CROSS_COMPILE ?= riscv64-linux-gnu-
++
++DRIVERS := $(ESP_ROOT)/soft/common/drivers/linux
++ACC_SW  := $(ESP_ROOT)/accelerators/rtl/gt_vortex_rtl/sw
++
++MODULES := esp_cache contig_alloc esp gt_vortex_rtl
++
++KBUILD_ARGS := ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
++               DRIVERS=$(DRIVERS) ACC_SW=$(ACC_SW) DESIGN_PATH=$(DESIGN_PATH)
++
++all: $(MODULES)
++
++# esp.ko and gt_vortex_rtl.ko reference symbols exported by earlier modules, so
++# each build is handed the earlier Module.symvers via KBUILD_EXTRA_SYMBOLS.
++# (Concatenating into $(M)/Module.symvers does not work: modpost overwrites it.)
++esp_cache:
++	$(MAKE) -C $(KSRC) M=$(MODDIR)/esp_cache $(KBUILD_ARGS) modules
++
++contig_alloc:
++	$(MAKE) -C $(KSRC) M=$(MODDIR)/contig_alloc $(KBUILD_ARGS) modules
++
++esp: esp_cache contig_alloc
++	$(MAKE) -C $(KSRC) M=$(MODDIR)/esp $(KBUILD_ARGS) modules \
++	    KBUILD_EXTRA_SYMBOLS="$(MODDIR)/esp_cache/Module.symvers $(MODDIR)/contig_alloc/Module.symvers"
++
++gt_vortex_rtl: esp
++	$(MAKE) -C $(KSRC) M=$(MODDIR)/gt_vortex_rtl $(KBUILD_ARGS) modules \
++	    KBUILD_EXTRA_SYMBOLS="$(MODDIR)/esp/Module.symvers"
++
++clean:
++	for m in $(MODULES); do $(MAKE) -C $(KSRC) M=$(MODDIR)/$$m $(KBUILD_ARGS) clean; done
++
++patch:
++	cd $(MODDIR) && diff -ruN --exclude='*.o' --exclude='*.ko' --exclude='*.mod*' \
++	    --exclude='.*' --exclude='Module.symvers' --exclude='modules.order' \
++	    .orig . > esp-6.6-port.patch || true
++	@echo "wrote esp-6.6-port.patch"
++
++.PHONY: all clean patch $(MODULES)

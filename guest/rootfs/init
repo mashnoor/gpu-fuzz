@@ -1,0 +1,47 @@
+#!/bin/sh
+# Guest init for the ESP/Vortex full-stack test.
+#
+# Memory plan (QEMU virt RAM starts at 0x80000000; boot with -m 2G):
+#   0x80000000 - 0xA0000000   Linux RAM          (kernel cmdline mem=512M)
+#   0xA0000000 - 0xA1000000   contig_alloc pool  (outside Linux's control)
+#   0xA5000000 - 0xB5000000   Vortex window      (reached via /dev/mem)
+# The RTL's AXI master DMAs straight into that last range, which is why it has
+# to be real QEMU RAM that Linux has been told to keep its hands off.
+
+/bin/busybox --install -s /bin 2>/dev/null
+mount -t proc     none /proc
+mount -t sysfs    none /sys
+mount -t devtmpfs none /dev 2>/dev/null
+
+echo
+echo "=== loading ESP kernel modules ==="
+# Order matters: esp.ko needs symbols from esp_cache.ko and contig_alloc.ko.
+insmod /modules/esp_cache.ko          || echo "  esp_cache: FAILED"
+insmod /modules/esp_private_cache.ko  || echo "  esp_private_cache: FAILED"
+insmod /modules/contig_alloc.ko start=0xA0000000 size=0x01000000 chunk_log=20 \
+                                      || echo "  contig_alloc: FAILED"
+insmod /modules/esp.ko                || echo "  esp: FAILED"
+insmod /modules/gt_vortex_rtl.ko      || echo "  gt_vortex_rtl: FAILED"
+lsmod
+
+echo
+echo "=== device nodes ==="
+ls -l /dev/gt_vortex_rtl.0 /dev/contig_alloc /dev/mem 2>&1
+
+export LD_LIBRARY_PATH=/lib
+export VORTEX_DRIVER=esp
+export VORTEX_ESP_BASE_ADDR=0xA5000000
+
+if [ -f /run-test.sh ]; then
+    /bin/sh /run-test.sh
+fi
+
+if grep -q autotest /proc/cmdline; then
+    echo
+    echo "=== autotest done, powering off ==="
+    poweroff -f
+fi
+
+echo
+echo "=== dropping to a shell (run /run-test.sh to repeat the test) ==="
+exec /bin/sh

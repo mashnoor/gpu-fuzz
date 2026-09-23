@@ -1,0 +1,72 @@
+# --- Large binaries / archives / office files ---
+*.pptx
+*.ppt
+*.docx
+*.xlsx
+*.bz2
+*.bk
+*.tar
+*.tar.gz
+*.tgz
+*.tar.xz
+*.xz
+*.zip
+*.cpio
+*.cpio.gz
+*.fsdb
+*.vcd
+*.fst
+
+# --- Upstream clones (own git repos; fetch separately) ---
+/vortex/
+/qemu-v8.2.2/
+/esp/
+/fuzzgpu-artifact/
+/guest/linux-*/
+/guest/busybox-*/
+
+# Guest rootfs is a build product; keep only hand-written scripts
+/guest/rootfs/*
+!/guest/rootfs/init
+!/guest/rootfs/run-test.sh
+
+# --- Coverage dumps ---
+modinfo.txt
+*.vdb/
+
+# --- Build outputs ---
+build/
+build-*/
+obj_dir/
+*.obj_dir/
+*.o
+*.a
+*.so
+*.so.*
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.cmd
+.*.cmd
+.*.d
+Module.symvers
+modules.order
+*.elf
+*.bin
+*.dump
+
+# --- Node / Python ---
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- Editor / OS ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+.github/modernize/

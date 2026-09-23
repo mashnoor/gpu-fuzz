@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080" role="img" aria-labelledby="title description">
+  <title id="title">GPU fuzzing pipeline: application and Linux driver through GPU RTL</title>
+  <desc id="description">Proposed architecture. A workload fuzzer drives an application, runtime, and user-mode driver inside a QEMU Linux guest. User space calls the real Linux kernel-mode driver. A device bridge carries register accesses, memory transactions, and interrupts between the driver and Verilator simulation of the accelerator interface, command processor, GPU cores, and memory system. Software and RTL instrumentation feed correctness checks and coverage back to the fuzzer. The device bridge and driver compatibility require integration.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="feedback-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+    </marker>
+    <style>
+      text { font-family: Inter, Arial, Helvetica, sans-serif; }
+      .title { font-size: 37px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-size: 21px; fill: #475569; }
+      .group-title { font-size: 22px; font-weight: 700; }
+      .node-title { font-size: 24px; font-weight: 700; fill: #0f172a; }
+      .node-detail { font-size: 19px; fill: #475569; }
+      .label { font-size: 18px; fill: #475569; }
+      .small { font-size: 17px; fill: #64748b; }
+      .flow { fill: none; stroke: #475569; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+      .observation { fill: none; stroke: #64748b; stroke-width: 2.5; stroke-dasharray: 8 7; stroke-linejoin: round; }
+      .feedback { fill: none; stroke: #7c3aed; stroke-width: 3; stroke-dasharray: 9 7; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1080" fill="#f8fafc"/>
+  <text x="70" y="69" class="title">GPU fuzzing: full driver to RTL</text>
+  <text x="70" y="105" class="subtitle">Proposed pipeline with a real Linux kernel-mode driver and simulated GPU hardware</text>
+
+  <!-- The return loop stays outside the execution path. -->
+  <path d="M 590 974 H 35 V 135 H 800 V 160" class="feedback" marker-end="url(#feedback-arrow)"/>
+  <text x="75" y="958" font-size="18" fill="#7c3aed">Save failures and guide the next mutation</text>
+
+  <!-- Fuzzer -->
+  <rect x="590" y="160" width="420" height="115" rx="18" fill="#ede9fe" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="800" y="203" text-anchor="middle" class="node-title">Workload fuzzer</text>
+  <text x="800" y="234" text-anchor="middle" class="node-detail">Host operations + GPU programs</text>
+  <text x="800" y="259" text-anchor="middle" class="node-detail">Input data + launch configuration</text>
+
+  <!-- Linux software boundary -->
+  <rect x="75" y="345" width="545" height="380" rx="22" fill="#eff6ff" stroke="#93c5fd" stroke-width="2"/>
+  <text x="105" y="382" class="group-title" fill="#1d4ed8">QEMU guest running Linux</text>
+  <text x="105" y="407" class="small">Real software executes inside the guest</text>
+
+  <rect x="110" y="430" width="475" height="100" rx="14" fill="#ffffff" stroke="#60a5fa" stroke-width="2"/>
+  <text x="347.5" y="471" text-anchor="middle" class="node-title">Application + runtime / UMD</text>
+  <text x="347.5" y="501" text-anchor="middle" class="node-detail">UMD = user-mode driver</text>
+
+  <rect x="110" y="605" width="475" height="95" rx="14" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="347.5" y="645" text-anchor="middle" class="node-title">Linux KMD</text>
+  <text x="347.5" y="675" text-anchor="middle" class="node-detail">Kernel-mode driver under test</text>
+
+  <path d="M 800 275 V 480 H 585" class="flow" marker-end="url(#arrow)"/>
+  <text x="816" y="322" class="label">Generated workloads</text>
+  <path d="M 347.5 530 V 605" class="flow" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <rect x="365" y="548" width="225" height="38" rx="6" fill="#eff6ff"/>
+  <text x="376" y="573" class="label">ioctl / mmap / waits</text>
+
+  <!-- Device transport bridge -->
+  <rect x="715" y="597" width="280" height="112" rx="16" fill="#fff7ed" stroke="#fb923c" stroke-width="2"/>
+  <text x="855" y="638" text-anchor="middle" class="node-title">Device bridge</text>
+  <text x="855" y="668" text-anchor="middle" class="node-detail">Registers, memory, IRQs</text>
+  <text x="855" y="694" text-anchor="middle" class="small">Simulation integration</text>
+  <path d="M 585 653 H 715" class="flow" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="855" y="750" text-anchor="middle" class="small">MMIO / DMA / interrupts</text>
+
+  <!-- Hardware simulation boundary -->
+  <rect x="1090" y="345" width="440" height="380" rx="22" fill="#f0fdf4" stroke="#86efac" stroke-width="2"/>
+  <text x="1120" y="382" class="group-title" fill="#15803d">Verilator: GPU RTL</text>
+  <text x="1120" y="407" class="small">Hardware design executes in simulation</text>
+
+  <rect x="1120" y="430" width="380" height="105" rx="14" fill="#ffffff" stroke="#4ade80" stroke-width="2"/>
+  <text x="1310" y="472" text-anchor="middle" class="node-title">Accelerator interface</text>
+  <text x="1310" y="504" text-anchor="middle" class="node-detail">Command processor / wrapper</text>
+
+  <rect x="1120" y="600" width="380" height="100" rx="14" fill="#dcfce7" stroke="#22c55e" stroke-width="2"/>
+  <text x="1310" y="641" text-anchor="middle" class="node-title">GPU cores + memory</text>
+  <text x="1310" y="672" text-anchor="middle" class="node-detail">Execute device programs in RTL</text>
+  <path d="M 995 653 H 1050 V 482.5 H 1120" class="flow" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <path d="M 1310 535 V 600" class="flow" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <!-- Instrumentation and result collection -->
+  <path d="M 347.5 700 V 910 H 590" class="observation" marker-end="url(#arrow)"/>
+  <text x="365" y="815" class="label">Software coverage</text>
+  <text x="365" y="842" class="label">Driver failures + API results</text>
+
+  <path d="M 1310 700 V 910 H 1010" class="observation" marker-end="url(#arrow)"/>
+  <text x="1088" y="815" class="label">RTL coverage + assertions</text>
+  <text x="1088" y="842" class="label">Outputs + execution traces</text>
+
+  <rect x="590" y="870" width="420" height="125" rx="18" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+  <text x="800" y="912" text-anchor="middle" class="node-title">Checks + feedback</text>
+  <text x="800" y="944" text-anchor="middle" class="node-detail">Correct results, ordering, progress</text>
+  <text x="800" y="973" text-anchor="middle" class="node-detail">Reduce and replay failing workloads</text>
+
+  <text x="75" y="1036" class="small">Solid: execution and device transactions. Dashed: instrumentation and fuzzing feedback.</text>
+  <text x="75" y="1062" class="small">Proposed architecture: the device bridge and KMD must implement the same interface; a compatible full-system setup must be built.</text>
+</svg>
